@@ -16,7 +16,7 @@ jobs:
     name: Run Tests & Syntax Check
     runs-on: ubuntu-latest
 
-    # Menjalankan Database PostgreSQL di Runner untuk Testing
+    # Service Container Database PostgreSQL untuk Testing di GitHub Runner
     services:
       postgres:
         image: postgres:15-alpine
@@ -36,33 +36,39 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Setup PHP dengan ekstensi PostgreSQL
+      # Setup Environment PHP 8.4 & Ekstensi PostgreSQL
       - name: Setup PHP Environment
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4' # Sesuaikan dengan versi PHP Anda (8.2 / 8.3)
+          php-version: '8.4'
           extensions: mbstring, xml, ctype, iconv, intl, pdo_pgsql, pgsql
           coverage: none
 
-      # Cek Sintaks Seluruh File PHP (Linting)
+      # Setup Environment Node.js
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Cek Sintaks Seluruh File PHP
       - name: Syntax Check (PHP Lint)
         run: |
           find app routes config -type f -name "*.php" -print0 | xargs -0 -n1 php -l
 
-      # Install & Run NPM Tests
+      # Install Dependensi NPM & Jalankan Test (jika ada)
       - name: Install Node Dependencies & Run Test
         run: |
           if [ -f package.json ]; then
-            npm ci || npm install
+            npm install
             npm test --if-present
           fi
 
-      # Install Composer Dependencies
+      # Install Dependensi Composer
       - name: Install Composer Dependencies
         run: |
-          composer install --no-interaction --prefer-dist --optimize-autoloader
+          composer install --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-reqs
 
-      # Jalankan Pengujian Laravel dengan Database PostgreSQL
+      # Jalankan Pengujian Laravel dengan Database PostgreSQL Runner
       - name: Run Laravel Feature & Unit Tests
         env:
           DB_CONNECTION: pgsql
@@ -86,30 +92,46 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
+      # Menggunakan OAuth Client Tailscale v3
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TAILSCALE_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
+          tags: tag:ci
+
+      # Diagnostik Koneksi Tailscale sebelum SSH
+      - name: Check Tailscale Peer Status
+        run: |
+          tailscale status
+          tailscale ping -c 3 ${{ secrets.SSH_HOST }}
+
+      # Eksekusi Deployment via SSH ke VPS
       - name: Execute Deployment Commands via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_KEY }}
+          port: 22
+          timeout: 60s
+          command_timeout: 10m
           script: |
             cd /var/www/backend-simkost
             
-            # Matikan aplikasi sementara
+            # Matikan aplikasi sementara saat deploy
             php artisan down || true
             
-            # Tarik kode terbaru
+            # Reset perubahan lokal jika ada & tarik kode terbaru
             git pull origin main
             
-            # Update dependensi Composer
+            # Update dependensi Composer produksi
             composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
             
-            # Jalankan migrasi database PostgreSQL di server
+            # Jalankan migrasi database PostgreSQL di server VPS
             php artisan migrate --force
             
             # Bersihkan dan optimasi cache
@@ -117,7 +139,7 @@ jobs:
             php artisan route:cache
             php artisan view:cache
             
-            # Nyalakan kembali aplikasi
+            # Hidupkan kembali aplikasi
             php artisan up
             
             echo "Deployment Berhasil ke PostgreSQL VPS!"
