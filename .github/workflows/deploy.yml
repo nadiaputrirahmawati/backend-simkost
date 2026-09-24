@@ -13,30 +13,20 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 1. Hubungkan GitHub Action Runner ke Jaringan Tailscale
+      # Menggunakan OAuth Client (menghilangkan warning deprecation authkey)
       - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
+        uses: tailscale/github-action@v3
         with:
-          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          client-id: ${{ secrets.TAILSCALE_CLIENT_ID }}
+          client-secret: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
 
-      # 2. Eksekusi Perintah Deploy ke VPS via SSH
       - name: Execute Deployment Commands via SSH
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            cd /var/www/my-app
-            git reset --hard
+            cd /var/www/backend-simkost
             git pull origin main
-            
-            # Sesuaikan dengan jenis aplikasi Anda:
-            # Contoh untuk Node.js:
-            # npm install --production
-            # pm2 restart app || pm2 start app.js --name "app"
-            
-            # Contoh untuk Docker:
-            # docker compose down && docker compose up -d --build
-            
             echo "Deployment Berhasil!"
