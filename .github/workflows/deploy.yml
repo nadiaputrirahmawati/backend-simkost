@@ -101,12 +101,6 @@ jobs:
         with:
           authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
 
-      # Diagnostik Koneksi Tailscale sebelum SSH
-      - name: Check Tailscale Peer Status
-        run: |
-          tailscale status
-          tailscale ping -c 3 ${{ secrets.SSH_HOST }}
-
       # Eksekusi Deployment via SSH ke VPS
       - name: Execute Deployment Commands via SSH
         uses: appleboy/ssh-action@v1.2.0
