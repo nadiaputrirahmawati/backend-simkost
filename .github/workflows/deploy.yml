@@ -13,12 +13,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+
+
       # Menggunakan OAuth Client (menghilangkan warning deprecation authkey)
       - name: Connect to Tailscale
         uses: tailscale/github-action@v3
         with:
-          client-id: ${{ secrets.TAILSCALE_CLIENT_ID }}
-          client-secret: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
 
       - name: Execute Deployment Commands via SSH
         uses: appleboy/ssh-action@v1.2.0
