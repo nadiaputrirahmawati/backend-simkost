@@ -1,0 +1,42 @@
+name: Deploy to VPS via Tailscale
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 1. Hubungkan GitHub Action Runner ke Jaringan Tailscale
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+      # 2. Eksekusi Perintah Deploy ke VPS via SSH
+      - name: Execute Deployment Commands via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /var/www/my-app
+            git reset --hard
+            git pull origin main
+            
+            # Sesuaikan dengan jenis aplikasi Anda:
+            # Contoh untuk Node.js:
+            # npm install --production
+            # pm2 restart app || pm2 start app.js --name "app"
+            
+            # Contoh untuk Docker:
+            # docker compose down && docker compose up -d --build
+            
+            echo "Deployment Berhasil!"
