@@ -44,12 +44,6 @@ jobs:
           extensions: mbstring, xml, ctype, iconv, intl, pdo_pgsql, pgsql
           coverage: none
 
-      - name: Setup Node.js Environment
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
       # Cek Sintaks Seluruh File PHP (Linting)
       - name: Syntax Check (PHP Lint)
         run: |
